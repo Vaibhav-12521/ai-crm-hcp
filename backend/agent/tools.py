@@ -30,15 +30,17 @@ def log_interaction(
     attendees: str = "",
     materials_shared: str = "",
     samples_distributed: str = "",
+    sentiment: str = "",
     outcome: str = "",
     follow_up_actions: str = "",
 ) -> str:
-    """Log a new interaction with a Healthcare Professional (HCP).
+    """Capture HCP interaction details from the user's message and PREFILL the
+    Log Interaction form for the rep to review.
 
-    Use this when the user describes a meeting, call, or email with an HCP.
-    The LLM automatically generates a short summary and a sentiment label
-    from the notes/topics discussed before saving. Returns a JSON confirmation
-    with the new id.
+    IMPORTANT: this does NOT save to the database. It uses the LLM to extract
+    the entities from the free-text message and returns them so the form is
+    populated. The rep reviews/edits the form and clicks "Log Interaction" to
+    save. Use this whenever the user describes a meeting, call, or email.
 
     Args:
         hcp_name: Full name of the HCP (e.g. "Dr. Sarah Chen").
@@ -48,57 +50,42 @@ def log_interaction(
         location: Where the interaction happened.
         interaction_type: One of Meeting, Call, Email, Conference, etc.
         attendees: Names of people who attended.
-        materials_shared: Materials or samples distributed to the HCP.
+        materials_shared: Materials shared with the HCP.
+        samples_distributed: Samples given (if any).
+        sentiment: Observed tone (Positive, Neutral, or Negative).
         outcome: The result or key takeaway of the interaction.
+        follow_up_actions: Next steps or tasks.
     """
-    llm = get_llm()
-
-    summary = notes
-    sentiment = "Neutral"
-    if notes:
-        prompt = (
-            "You extract structured insight from a sales interaction note. "
-            "Return ONLY compact JSON with keys 'summary' (one sentence) and "
-            "'sentiment' (one of Positive, Neutral, Negative).\n\n"
-            f"Note: {notes}"
-        )
+    inferred = sentiment or "Neutral"
+    if notes and not sentiment:
         try:
-            resp = llm.invoke([HumanMessage(content=prompt)])
-            data = json.loads(_extract_json(resp.content))
-            summary = data.get("summary", notes)
-            sentiment = data.get("sentiment", "Neutral")
+            llm = get_llm()
+            prompt = (
+                "Classify the sentiment of this sales interaction note. Return "
+                "ONLY one word: Positive, Neutral, or Negative.\n\n"
+                f"Note: {notes}"
+            )
+            word = llm.invoke([HumanMessage(content=prompt)]).content.strip().split()[0]
+            if word.capitalize() in ("Positive", "Neutral", "Negative"):
+                inferred = word.capitalize()
         except Exception:
             pass
 
-    db = SessionLocal()
-    try:
-        interaction = Interaction(
-            hcp_name=hcp_name,
-            date=_parse_date(date),
-            time=time or None,
-            location=location or None,
-            interaction_type=interaction_type or None,
-            attendees=attendees or None,
-            notes=notes or None,
-            materials_shared=materials_shared or None,
-            samples_distributed=samples_distributed or None,
-            outcome=outcome or None,
-            follow_up_actions=follow_up_actions or None,
-            summary=summary,
-            sentiment=sentiment,
-        )
-        db.add(interaction)
-        db.commit()
-        db.refresh(interaction)
-        return json.dumps({
-            "status": "logged",
-            "id": interaction.id,
-            "hcp_name": interaction.hcp_name,
-            "summary": summary,
-            "sentiment": sentiment,
-        })
-    finally:
-        db.close()
+    fields = {
+        "hcp_name": hcp_name,
+        "notes": notes,
+        "date": date,
+        "time": time,
+        "location": location,
+        "interaction_type": interaction_type,
+        "attendees": attendees,
+        "materials_shared": materials_shared,
+        "samples_distributed": samples_distributed,
+        "sentiment": inferred,
+        "outcome": outcome,
+        "follow_up_actions": follow_up_actions,
+    }
+    return json.dumps({"status": "form_prefilled", "fields": fields})
 
 
 @tool

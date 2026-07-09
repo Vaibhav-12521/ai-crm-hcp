@@ -13,6 +13,7 @@ export default function ChatInterface() {
   const dispatch = useDispatch()
   const { messages, status } = useSelector((s) => s.chat)
   const [text, setText] = useState('')
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const scrollRef = useRef(null)
 
   useEffect(() => {
@@ -65,15 +66,32 @@ export default function ChatInterface() {
         )}
       </div>
 
-      <div className="suggestions">
-        {SUGGESTIONS.map((s) => (
-          <button key={s} className="chip" onClick={() => send(s)}>
-            {s}
-          </button>
-        ))}
-      </div>
+      {showSuggestions && (
+        <div className="suggestions">
+          {SUGGESTIONS.map((s) => (
+            <button
+              key={s}
+              className="chip"
+              onClick={() => {
+                send(s)
+                setShowSuggestions(false)
+              }}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="chat-input">
+        <button
+          type="button"
+          className="btn-suggest"
+          title="Show example prompts"
+          onClick={() => setShowSuggestions((v) => !v)}
+        >
+          💡 Suggest
+        </button>
         <textarea
           rows={1}
           value={text}

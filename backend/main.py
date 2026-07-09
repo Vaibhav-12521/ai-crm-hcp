@@ -1,3 +1,4 @@
+import json
 import logging
 
 from fastapi import FastAPI, Depends, HTTPException, Request
@@ -120,7 +121,17 @@ def chat(payload: schemas.ChatRequest):
                 'e.g. "Met Dr. Chen today, discussed the new data."'
             )
 
-        return schemas.ChatResponse(reply=reply, tools_used=tools_used)
+        form_prefill = None
+        for m in out_messages:
+            if isinstance(m, ToolMessage):
+                try:
+                    data = json.loads(m.content)
+                    if isinstance(data, dict) and data.get("status") == "form_prefilled":
+                        form_prefill = data.get("fields")
+                except (ValueError, TypeError):
+                    pass
+
+        return schemas.ChatResponse(reply=reply, tools_used=tools_used, form_prefill=form_prefill)
     except Exception:
         logger.exception("Chat agent error")
         return schemas.ChatResponse(

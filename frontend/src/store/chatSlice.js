@@ -27,10 +27,14 @@ const chatSlice = createSlice({
       },
     ],
     status: 'idle',
+    draft: null,
   },
   reducers: {
     pushUserMessage: (state, action) => {
       state.messages.push({ role: 'user', content: action.payload, tools: [] })
+    },
+    clearDraft: (state) => {
+      state.draft = null
     },
   },
   extraReducers: (builder) => {
@@ -45,6 +49,9 @@ const chatSlice = createSlice({
           content: action.payload.reply,
           tools: action.payload.tools_used || [],
         })
+        if (action.payload.form_prefill) {
+          state.draft = action.payload.form_prefill
+        }
       })
       .addCase(sendMessage.rejected, (state, action) => {
         state.status = 'failed'
@@ -57,5 +64,5 @@ const chatSlice = createSlice({
   },
 })
 
-export const { pushUserMessage } = chatSlice.actions
+export const { pushUserMessage, clearDraft } = chatSlice.actions
 export default chatSlice.reducer

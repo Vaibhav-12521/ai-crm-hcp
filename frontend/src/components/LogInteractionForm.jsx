@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { createInteraction } from '../store/interactionsSlice'
+import { clearDraft } from '../store/chatSlice'
 import { api } from '../api/api'
 
 const EMPTY = {
@@ -37,10 +38,22 @@ export default function LogInteractionForm() {
   const [hcps, setHcps] = useState([])
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
+  const draft = useSelector((s) => s.chat.draft)
 
   useEffect(() => {
     api.listHcps().then(setHcps).catch(() => setHcps([]))
   }, [])
+
+  useEffect(() => {
+    if (!draft) return
+    const clean = {}
+    Object.entries(draft).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && String(v).trim() !== '') clean[k] = v
+    })
+    setForm((f) => ({ ...f, ...clean }))
+    setError('')
+    dispatch(clearDraft())
+  }, [draft, dispatch])
 
   const update = (field) => (e) => {
     setError('')
