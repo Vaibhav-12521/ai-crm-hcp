@@ -60,6 +60,12 @@ export default function LogInteractionForm() {
     setForm({ ...form, [field]: e.target.value })
   }
 
+  const clearForm = () => {
+    setForm(EMPTY)
+    setError('')
+    setSaved(false)
+  }
+
   const addSuggestion = (text) => {
     setForm((f) => ({
       ...f,
@@ -205,6 +211,9 @@ export default function LogInteractionForm() {
       <div className="form-actions">
         {error && <span className="error-badge">{error}</span>}
         {saved && <span className="saved-badge">✓ Interaction logged</span>}
+        <button type="button" className="btn-secondary" onClick={clearForm}>
+          Clear
+        </button>
         <button type="submit" className="btn-primary">
           Log Interaction
         </button>
