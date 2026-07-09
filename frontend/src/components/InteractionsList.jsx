@@ -26,7 +26,7 @@ export default function InteractionsList({ items }) {
               )}
             </div>
             <div className="list-meta">
-              {it.interaction_type || 'Interaction'} · {it.date || '—'}
+              {it.interaction_type || 'Interaction'} · {it.date || 'N/A'}
               {it.time ? ` ${it.time}` : ''}
               {it.location ? ` · ${it.location}` : ''}
             </div>

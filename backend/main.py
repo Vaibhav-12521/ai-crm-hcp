@@ -1,7 +1,8 @@
-import json
+import logging
 
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from sqlalchemy.orm import Session
 
@@ -10,6 +11,8 @@ from models import Interaction, HCP
 import schemas
 from agent.graph import build_agent
 from seed import seed_hcps
+
+logger = logging.getLogger("uvicorn.error")
 
 Base.metadata.create_all(bind=engine)
 seed_hcps()
@@ -23,6 +26,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled error on %s", request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Something went wrong on our end. Please try again in a moment."},
+    )
 
 
 @app.get("/api/health")
@@ -67,38 +79,51 @@ def update_interaction(
 
 @app.post("/api/chat", response_model=schemas.ChatResponse)
 def chat(payload: schemas.ChatRequest):
-    agent = build_agent()
+    if not payload.message or not payload.message.strip():
+        return schemas.ChatResponse(
+            reply="Please type a message so I can help you log or find an interaction.",
+            tools_used=[],
+        )
 
-    messages = []
-    for turn in payload.history:
-        role = turn.get("role")
-        content = turn.get("content", "")
-        if role == "user":
-            messages.append(HumanMessage(content=content))
-        elif role == "assistant":
-            messages.append(AIMessage(content=content))
-    messages.append(HumanMessage(content=payload.message))
+    try:
+        agent = build_agent()
 
-    result = agent.invoke({"messages": messages})
-    out_messages = result["messages"]
+        messages = []
+        for turn in payload.history:
+            role = turn.get("role")
+            content = turn.get("content", "")
+            if role == "user":
+                messages.append(HumanMessage(content=content))
+            elif role == "assistant":
+                messages.append(AIMessage(content=content))
+        messages.append(HumanMessage(content=payload.message))
 
-    tools_used = []
-    for m in out_messages:
-        if isinstance(m, AIMessage) and m.tool_calls:
-            for call in m.tool_calls:
-                tools_used.append(schemas.ChatToolCall(tool=call["name"], args=call["args"]))
+        result = agent.invoke({"messages": messages})
+        out_messages = result["messages"]
 
-    reply = ""
-    for m in reversed(out_messages):
-        if isinstance(m, AIMessage) and isinstance(m.content, str) and m.content.strip():
-            reply = m.content.strip()
-            break
-    if not reply:
+        tools_used = []
+        for m in out_messages:
+            if isinstance(m, AIMessage) and m.tool_calls:
+                for call in m.tool_calls:
+                    tools_used.append(schemas.ChatToolCall(tool=call["name"], args=call["args"]))
+
+        reply = ""
         for m in reversed(out_messages):
-            if isinstance(m, ToolMessage):
-                reply = f"Done. Result: {m.content}"
+            if isinstance(m, AIMessage) and isinstance(m.content, str) and m.content.strip():
+                reply = m.content.strip()
                 break
-    if not reply:
-        reply = "I'm not sure how to help with that yet."
+        if not reply and tools_used:
+            reply = "Done. I've updated your interactions."
+        if not reply:
+            reply = (
+                "I'm not sure how to help with that yet. Try describing an interaction, "
+                'e.g. "Met Dr. Chen today, discussed the new data."'
+            )
 
-    return schemas.ChatResponse(reply=reply, tools_used=tools_used)
+        return schemas.ChatResponse(reply=reply, tools_used=tools_used)
+    except Exception:
+        logger.exception("Chat agent error")
+        return schemas.ChatResponse(
+            reply="Sorry, I'm having trouble reaching the AI assistant right now. Please try again in a moment.",
+            tools_used=[],
+        )

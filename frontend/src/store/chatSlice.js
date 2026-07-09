@@ -22,7 +22,7 @@ const chatSlice = createSlice({
       {
         role: 'assistant',
         content:
-          "Hi! I'm your CRM assistant. Tell me about an HCP interaction and I'll log it — e.g. \"Met Dr. Sarah Chen in Boston today, she was very interested in the new trial data.\"",
+          "Hi! I'm your CRM assistant. Tell me about an HCP interaction and I'll log it, e.g. \"Met Dr. Sarah Chen in Boston today, she was very interested in the new trial data.\"",
         tools: [],
       },
     ],
@@ -46,11 +46,11 @@ const chatSlice = createSlice({
           tools: action.payload.tools_used || [],
         })
       })
-      .addCase(sendMessage.rejected, (state) => {
+      .addCase(sendMessage.rejected, (state, action) => {
         state.status = 'failed'
         state.messages.push({
           role: 'assistant',
-          content: '⚠️ Sorry, something went wrong reaching the AI backend.',
+          content: action.error?.message || 'Sorry, something went wrong. Please try again.',
           tools: [],
         })
       })

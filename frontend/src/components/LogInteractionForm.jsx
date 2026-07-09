@@ -36,12 +36,16 @@ export default function LogInteractionForm() {
   const [form, setForm] = useState(EMPTY)
   const [hcps, setHcps] = useState([])
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     api.listHcps().then(setHcps).catch(() => setHcps([]))
   }, [])
 
-  const update = (field) => (e) => setForm({ ...form, [field]: e.target.value })
+  const update = (field) => (e) => {
+    setError('')
+    setForm({ ...form, [field]: e.target.value })
+  }
 
   const addSuggestion = (text) => {
     setForm((f) => ({
@@ -52,11 +56,19 @@ export default function LogInteractionForm() {
 
   const submit = async (e) => {
     e.preventDefault()
-    if (!form.hcp_name.trim()) return
-    await dispatch(createInteraction(form))
-    setForm(EMPTY)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
+    setError('')
+    if (!form.hcp_name.trim()) {
+      setError('Please enter the HCP name before logging the interaction.')
+      return
+    }
+    try {
+      await dispatch(createInteraction(form)).unwrap()
+      setForm(EMPTY)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+    } catch (err) {
+      setError(err?.message || "Couldn't save the interaction. Please try again.")
+    }
   }
 
   return (
@@ -178,6 +190,7 @@ export default function LogInteractionForm() {
       </div>
 
       <div className="form-actions">
+        {error && <span className="error-badge">{error}</span>}
         {saved && <span className="saved-badge">✓ Interaction logged</span>}
         <button type="submit" className="btn-primary">
           Log Interaction

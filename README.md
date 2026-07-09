@@ -1,7 +1,7 @@
-# AI-First CRM — HCP Module (Log Interaction Screen)
+# AI-First CRM - HCP Module (Log Interaction Screen)
 
 A full-stack, AI-first CRM module that lets pharmaceutical field representatives
-log and manage interactions with **Healthcare Professionals (HCPs)** — either
+log and manage interactions with **Healthcare Professionals (HCPs)** - either
 through a **structured form** or a **conversational AI assistant**, shown
 side-by-side on a single **Log HCP Interaction** screen.
 
@@ -9,7 +9,7 @@ side-by-side on a single **Log HCP Interaction** screen.
 
 ## ✨ Features
 
-- **Log HCP Interaction screen** — a structured **form** (left) and a persistent
+- **Log HCP Interaction screen** - a structured **form** (left) and a persistent
   **AI Assistant chat** (right), so a rep can log an interaction whichever way is
   faster.
 - **Form fields**: HCP Name (searchable), Interaction Type, Date, Time,
@@ -29,7 +29,7 @@ side-by-side on a single **Log HCP Interaction** screen.
 | Frontend  | React (Vite) + Redux Toolkit + Inter font      |
 | Backend   | Python + FastAPI                               |
 | AI Agent  | LangGraph + LangChain                          |
-| LLM       | Groq — `gemma2-9b-it` (or `llama-3.3-70b-versatile`) |
+| LLM       | Groq - `gemma2-9b-it` (or `llama-3.3-70b-versatile`) |
 | Database  | PostgreSQL (SQLAlchemy ORM)                    |
 
 ---
@@ -53,9 +53,9 @@ It is implemented as a `StateGraph` with two nodes and a loop:
           final reply
 ```
 
-1. **agent node** — the Groq LLM bound to the 5 tools; decides whether a tool is
+1. **agent node** - the Groq LLM bound to the 5 tools; decides whether a tool is
    needed and with what arguments.
-2. **tools node** — executes the requested tool calls.
+2. **tools node** - executes the requested tool calls.
 3. A **conditional edge** loops back to the agent so it can read tool output and
    produce a final answer.
 
@@ -63,17 +63,17 @@ See `backend/agent/graph.py`.
 
 ### The 5 tools (`backend/agent/tools.py`)
 
-1. **Log Interaction** — captures a new interaction from natural language. It
+1. **Log Interaction** - captures a new interaction from natural language. It
    parses the HCP name, type, date/time, attendees, materials and outcome, then
    uses the **LLM to summarize** the notes and **extract sentiment** before
    persisting the row. Returns the new interaction id.
-2. **Edit Interaction** — modifies an already-logged interaction by its id. Only
+2. **Edit Interaction** - modifies an already-logged interaction by its id. Only
    the fields the rep supplies are changed; if the notes change, the summary and
    sentiment are **regenerated** by the LLM.
-3. **Search HCP** — finds HCP profiles by name, specialty, or location.
-4. **Sentiment Analysis** — classifies the tone (Positive / Neutral / Negative)
+3. **Search HCP** - finds HCP profiles by name, specialty, or location.
+4. **Sentiment Analysis** - classifies the tone (Positive / Neutral / Negative)
    of any interaction note, with a short rationale.
-5. **Suggest Next Action** — reviews an HCP's recent interaction history and
+5. **Suggest Next Action** - reviews an HCP's recent interaction history and
    recommends the single next best action for the rep, with reasoning.
 
 ---
@@ -155,7 +155,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000 — Vite proxies `/api` to the backend on port 8000.
+Open http://localhost:3000 - Vite proxies `/api` to the backend on port 8000.
 
 ---
 
@@ -197,7 +197,7 @@ row is saved, and a natural-language confirmation is returned.
 
 ## 📝 Notes
 
-- The Groq API key in `.env.example` is a **placeholder** — replace it with yours.
+- The Groq API key in `.env.example` is a **placeholder** - replace it with yours.
 - If `gemma2-9b-it` doesn't reliably trigger tool calls, set
   `GROQ_MODEL=llama-3.3-70b-versatile` in `.env` (stronger tool-calling support).
 - CORS is open (`*`) for easy local development.
