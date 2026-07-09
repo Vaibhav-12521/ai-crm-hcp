@@ -71,6 +71,10 @@ def log_interaction(
         except Exception:
             pass
 
+    inferred = inferred.strip().capitalize()
+    if inferred not in ("Positive", "Neutral", "Negative"):
+        inferred = "Neutral"
+
     fields = {
         "hcp_name": hcp_name,
         "notes": notes,

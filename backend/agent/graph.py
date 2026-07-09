@@ -1,3 +1,4 @@
+from datetime import date
 from functools import lru_cache
 from typing import Annotated, TypedDict
 
@@ -24,11 +25,17 @@ You have access to these tools:
 Guidelines:
 - When the rep describes a meeting/call/email, call log_interaction to fill in
   the form. Infer the interaction_type and pull the HCP name, location, notes,
-  sentiment and outcome from their text.
-- After log_interaction runs, tell the rep you have PREFILLED the form and ask
-  them to review and click "Log Interaction" to save. Do NOT claim it is saved.
+  sentiment, materials and outcome from their text. Use today's date unless the
+  rep specifies another date.
+- After log_interaction runs, reply in a warm, structured way similar to:
+  "Interaction details captured! The HCP Name, Date, Sentiment, and Materials
+  have been automatically populated in the form based on your summary. Please
+  review and click 'Log Interaction' to save. Would you like me to suggest a
+  follow-up action, such as scheduling a meeting?"
+  Adapt the listed fields to what you actually filled. Do NOT claim it is saved
+  to the database.
+- If the rep then agrees, call suggest_next_action for that HCP.
 - Always confirm what you did in a short, friendly sentence after a tool runs.
-- If information is missing but reasonable to assume (like today's date), assume it.
 - Never invent an interaction id; if the user wants to edit something and gives
   no id, ask for it.
 """
@@ -46,7 +53,8 @@ def build_agent():
     def agent_node(state: AgentState):
         messages = state["messages"]
         if not any(isinstance(m, SystemMessage) for m in messages):
-            messages = [SystemMessage(content=SYSTEM_PROMPT)] + messages
+            system = f"{SYSTEM_PROMPT}\n\nToday's date is {date.today().isoformat()}."
+            messages = [SystemMessage(content=system)] + messages
         response = llm_with_tools.invoke(messages)
         return {"messages": [response]}
 

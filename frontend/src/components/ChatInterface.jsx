@@ -66,6 +66,17 @@ export default function ChatInterface() {
         )}
       </div>
 
+      <div className="chat-tools">
+        <button
+          type="button"
+          className={`btn-suggest ${showSuggestions ? 'active' : ''}`}
+          title="Show example prompts"
+          onClick={() => setShowSuggestions((v) => !v)}
+        >
+          <i className="bi bi-lightbulb-fill"></i> Suggest
+        </button>
+      </div>
+
       {showSuggestions && (
         <div className="suggestions">
           {SUGGESTIONS.map((s) => (
@@ -84,14 +95,6 @@ export default function ChatInterface() {
       )}
 
       <div className="chat-input">
-        <button
-          type="button"
-          className="btn-suggest"
-          title="Show example prompts"
-          onClick={() => setShowSuggestions((v) => !v)}
-        >
-          💡 Suggest
-        </button>
         <textarea
           rows={1}
           value={text}
