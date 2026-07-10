@@ -130,19 +130,29 @@ def edit_interaction(
     hcp_name: str = "",
     notes: str = "",
     date: str = "",
+    time: str = "",
     location: str = "",
     interaction_type: str = "",
+    attendees: str = "",
+    materials_shared: str = "",
+    samples_distributed: str = "",
+    sentiment: str = "",
     outcome: str = "",
+    follow_up_actions: str = "",
 ) -> str:
-    """Edit / update an already-logged interaction by its id.
+    """Load an existing interaction into the form so the rep can edit it.
 
-    Only the provided (non-empty) fields are changed. If notes are updated,
-    the summary and sentiment are regenerated. Returns a JSON confirmation.
+    Use this when the rep asks to edit/change an existing interaction by its id
+    (e.g. "edit interaction 1"). It fetches the saved record and loads all its
+    current values into the form. If the rep also stated changes in the same
+    message, pass those field(s) and they are applied on top. It does NOT save;
+    the rep reviews and clicks "Update Interaction" to save.
 
     Args:
         interaction_id: The id of the interaction to edit (a number as a string).
-        hcp_name, notes, date, location, interaction_type, outcome:
-            New values. Leave empty to keep the existing value.
+        hcp_name, notes, date, time, location, interaction_type, attendees,
+        materials_shared, samples_distributed, sentiment, outcome,
+        follow_up_actions: Optional new values for any field the rep changed.
     """
     try:
         iid = int(str(interaction_id).strip())
@@ -151,44 +161,27 @@ def edit_interaction(
 
     db = SessionLocal()
     try:
-        interaction = db.get(Interaction, iid)
-        if interaction is None:
+        row = db.get(Interaction, iid)
+        if row is None:
             return json.dumps({"status": "error", "message": f"No interaction with id {iid}"})
 
-        if hcp_name:
-            interaction.hcp_name = hcp_name
-        if date:
-            interaction.date = _parse_date(date)
-        if location:
-            interaction.location = location
-        if interaction_type:
-            interaction.interaction_type = interaction_type
-        if outcome:
-            interaction.outcome = outcome
-        if notes:
-            interaction.notes = notes
-            try:
-                llm = get_llm()
-                prompt = (
-                    "Return ONLY JSON with 'summary' (one sentence) and "
-                    "'sentiment' (Positive/Neutral/Negative).\n\n"
-                    f"Note: {notes}"
-                )
-                data = json.loads(_extract_json(llm.invoke([HumanMessage(content=prompt)]).content))
-                interaction.summary = data.get("summary", notes)
-                interaction.sentiment = data.get("sentiment", interaction.sentiment)
-            except Exception:
-                interaction.summary = notes
-
-        db.commit()
-        db.refresh(interaction)
-        return json.dumps({
-            "status": "updated",
-            "id": interaction.id,
-            "hcp_name": interaction.hcp_name,
-            "summary": interaction.summary,
-            "sentiment": interaction.sentiment,
-        })
+        fields = {
+            "hcp_name": hcp_name or row.hcp_name or "",
+            "notes": notes or row.notes or "",
+            "date": date or (row.date.isoformat() if row.date else ""),
+            "time": time or row.time or "",
+            "location": location or row.location or "",
+            "interaction_type": interaction_type or row.interaction_type or "Meeting",
+            "attendees": attendees or row.attendees or "",
+            "materials_shared": materials_shared or row.materials_shared or "",
+            "samples_distributed": samples_distributed or row.samples_distributed or "",
+            "sentiment": (sentiment or row.sentiment or "Neutral").strip().capitalize(),
+            "outcome": outcome or row.outcome or "",
+            "follow_up_actions": follow_up_actions or row.follow_up_actions or "",
+        }
+        if fields["sentiment"] not in ("Positive", "Neutral", "Negative"):
+            fields["sentiment"] = "Neutral"
+        return json.dumps({"status": "edit_loaded", "edit_id": iid, "fields": fields})
     finally:
         db.close()
 

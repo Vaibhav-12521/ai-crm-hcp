@@ -28,6 +28,7 @@ const chatSlice = createSlice({
     ],
     status: 'idle',
     draft: null,
+    editLoad: null,
     saveSignal: 0,
   },
   reducers: {
@@ -36,6 +37,9 @@ const chatSlice = createSlice({
     },
     clearDraft: (state) => {
       state.draft = null
+    },
+    clearEditLoad: (state) => {
+      state.editLoad = null
     },
   },
   extraReducers: (builder) => {
@@ -50,7 +54,9 @@ const chatSlice = createSlice({
           content: action.payload.reply,
           tools: action.payload.tools_used || [],
         })
-        if (action.payload.form_prefill) {
+        if (action.payload.edit_id != null) {
+          state.editLoad = { id: action.payload.edit_id, fields: action.payload.form_prefill || {} }
+        } else if (action.payload.form_prefill) {
           state.draft = action.payload.form_prefill
         }
         if (action.payload.action === 'save') {
@@ -68,5 +74,5 @@ const chatSlice = createSlice({
   },
 })
 
-export const { pushUserMessage, clearDraft } = chatSlice.actions
+export const { pushUserMessage, clearDraft, clearEditLoad } = chatSlice.actions
 export default chatSlice.reducer

@@ -71,3 +71,4 @@ class ChatResponse(BaseModel):
     tools_used: List[ChatToolCall] = []
     form_prefill: Optional[dict] = None
     action: Optional[str] = None
+    edit_id: Optional[int] = None

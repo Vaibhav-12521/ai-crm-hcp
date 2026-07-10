@@ -11,4 +11,6 @@ def get_llm(temperature: float = 0.0) -> ChatGroq:
         api_key=settings.groq_api_key,
         model=settings.groq_model,
         temperature=temperature,
+        request_timeout=25,
+        max_retries=1,
     )

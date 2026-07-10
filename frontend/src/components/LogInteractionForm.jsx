@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { createInteraction } from '../store/interactionsSlice'
-import { clearDraft } from '../store/chatSlice'
+import { createInteraction, editInteraction } from '../store/interactionsSlice'
+import { clearDraft, clearEditLoad } from '../store/chatSlice'
 import { api } from '../api/api'
 
 const EMPTY = {
@@ -37,11 +37,16 @@ export default function LogInteractionForm() {
   const [form, setForm] = useState(EMPTY)
   const [hcps, setHcps] = useState([])
   const [saved, setSaved] = useState(false)
+  const [savedText, setSavedText] = useState('Interaction logged')
   const [error, setError] = useState('')
+  const [editingId, setEditingId] = useState(null)
   const draft = useSelector((s) => s.chat.draft)
+  const editLoad = useSelector((s) => s.chat.editLoad)
   const saveSignal = useSelector((s) => s.chat.saveSignal)
   const formRef = useRef(form)
   formRef.current = form
+  const editingRef = useRef(editingId)
+  editingRef.current = editingId
   const lastSaveSignal = useRef(saveSignal)
 
   useEffect(() => {
@@ -59,6 +64,18 @@ export default function LogInteractionForm() {
     dispatch(clearDraft())
   }, [draft, dispatch])
 
+  useEffect(() => {
+    if (!editLoad) return
+    const loaded = { ...EMPTY }
+    Object.entries(editLoad.fields || {}).forEach(([k, v]) => {
+      if (k in loaded) loaded[k] = v ?? ''
+    })
+    setForm(loaded)
+    setEditingId(editLoad.id)
+    setError('')
+    dispatch(clearEditLoad())
+  }, [editLoad, dispatch])
+
   const update = (field) => (e) => {
     setError('')
     setForm({ ...form, [field]: e.target.value })
@@ -66,6 +83,7 @@ export default function LogInteractionForm() {
 
   const clearForm = () => {
     setForm(EMPTY)
+    setEditingId(null)
     setError('')
     setSaved(false)
   }
@@ -80,12 +98,20 @@ export default function LogInteractionForm() {
   const doSave = async (data) => {
     setError('')
     if (!data.hcp_name.trim()) {
-      setError('Please enter the HCP name before logging the interaction.')
+      setError('Please enter the HCP name before saving the interaction.')
       return
     }
+    const id = editingRef.current
     try {
-      await dispatch(createInteraction(data)).unwrap()
+      if (id) {
+        await dispatch(editInteraction({ id, payload: data })).unwrap()
+        setSavedText('Interaction updated')
+      } else {
+        await dispatch(createInteraction(data)).unwrap()
+        setSavedText('Interaction logged')
+      }
       setForm(EMPTY)
+      setEditingId(null)
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
     } catch (err) {
@@ -109,6 +135,7 @@ export default function LogInteractionForm() {
 
   return (
     <form className="card form" onSubmit={submit}>
+      {editingId && <div className="edit-note">✎ Editing interaction #{editingId}</div>}
       <div className="section-label">Interaction Details</div>
 
       <div className="row">
@@ -227,12 +254,12 @@ export default function LogInteractionForm() {
 
       <div className="form-actions">
         {error && <span className="error-badge">{error}</span>}
-        {saved && <span className="saved-badge">✓ Interaction logged</span>}
+        {saved && <span className="saved-badge">✓ {savedText}</span>}
         <button type="button" className="btn-secondary" onClick={clearForm}>
-          Clear
+          {editingId ? 'Cancel' : 'Clear'}
         </button>
         <button type="submit" className="btn-primary">
-          Log Interaction
+          {editingId ? 'Update Interaction' : 'Log Interaction'}
         </button>
       </div>
     </form>

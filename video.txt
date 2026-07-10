@@ -1,0 +1,178 @@
+========================================================================
+VIDEO RECORDING SCRIPT (10-15 minutes)
+AI-First CRM - HCP Module: Log Interaction Screen
+========================================================================
+
+BEFORE YOU RECORD (setup checklist)
+------------------------------------------------------------------------
+1. Start the backend:
+     cd C:\Users\vaibh\Desktop\JOB\ai-crm-hcp\backend
+     .\.venv\Scripts\uvicorn.exe main:app --port 8000
+   Wait for "Application startup complete."
+
+2. Start the frontend (new terminal):
+     cd C:\Users\vaibh\Desktop\JOB\ai-crm-hcp\frontend
+     npm run dev
+
+3. Open http://localhost:3000 in the browser.
+4. Make sure backend/.env has a valid GROQ_API_KEY.
+5. (Optional) Clear old data so "Recent Interactions" starts empty for the demo.
+6. Recommended: keep the AI messages as ONE full sentence for reliable extraction.
+
+TIP: Screen-record at 1080p, keep the browser and one code editor window ready.
+
+
+========================================================================
+PART 1 - INTRO & WHAT YOU UNDERSTOOD  (0:00 - 1:30)
+========================================================================
+Say:
+"Hi, this is my submission for the AI-First CRM HCP module - the Log
+Interaction screen. The goal is a tool for pharmaceutical field reps to log
+their interactions with Healthcare Professionals. What makes it AI-first is
+that a rep can log an interaction in two ways: by filling a structured form,
+or simply by describing it in plain English to an AI Assistant, which extracts
+the details and fills the form for review before saving.
+
+The stack is React with Redux on the frontend, Python FastAPI on the backend,
+a LangGraph agent that calls Groq LLMs as the AI layer, and PostgreSQL for
+storage, with the Google Inter font throughout."
+
+NOTE TO MENTION:
+"The brief specifies gemma2-9b-it, but Groq has decommissioned that model, so I
+used llama-3.1-8b-instant (the brief also lists llama-3.3-70b-versatile as an
+option). It's configurable via one environment variable."
+
+
+========================================================================
+PART 2 - FRONTEND WALKTHROUGH  (1:30 - 4:00)
+========================================================================
+Show and narrate:
+1. The sidebar with two tabs: "Log Interaction" and "Recent Interactions".
+2. The Log Interaction screen layout:
+   - Left: the structured form (HCP Name, Interaction Type, Date, Time,
+     Attendees, Topics Discussed, Materials Shared, Samples Distributed,
+     Observed Sentiment, Outcomes, Follow-up Actions).
+   - Right: the AI Assistant chat panel.
+3. Point out the sticky "Clear" and "Log Interaction" buttons at the bottom.
+4. Point out the "Suggest" button in the chat (click it to reveal example prompts).
+
+DEMO THE FORM PATH FIRST:
+- Fill the form manually: HCP = "Dr. Sarah Chen", Type = Meeting, add a note,
+  pick a sentiment, add an outcome.
+- Click "Log Interaction".
+- Switch to the "Recent Interactions" tab and show the saved record with its
+  fields and sentiment tag.
+
+Say:
+"So that's the manual form path - fully functional and reliable. Now the more
+interesting part: the AI Assistant."
+
+
+========================================================================
+PART 3 - DEMO ALL 5 LANGGRAPH TOOLS  (4:00 - 9:00)
+========================================================================
+Go to the AI Assistant panel. After each message, point out the small tool tag
+(shown under the AI reply) that proves WHICH tool the agent chose.
+
+TOOL 1 - Log Interaction (extraction + prefill):
+  Type: "Met Dr. Smith today, discussed Product X efficacy, sentiment was
+         positive, shared the brochures, attendees were Rahul and Shyam."
+  Show: the form on the left auto-fills (HCP name, date, topics, sentiment=
+        Positive, materials, attendees). Tool tag: log_interaction.
+  Say: "The agent used the LLM to extract entities and prefilled the form. It
+        does NOT auto-save - the rep reviews first."
+
+  Then type: "save it"
+  Show: tool tag save_interaction, and the record appears in Recent Interactions.
+  Say: "Saying 'save it' commits the reviewed form to the database."
+
+TOOL 2 - Search HCP:
+  Type: "Find HCPs in Cardiology."
+  Show: the agent returns matching HCP profiles. Tool tag: search_hcp.
+
+TOOL 3 - Sentiment Analysis:
+  Type: "Analyze the sentiment of this note: the doctor was frustrated and
+         dismissive about pricing."
+  Show: reply classifies it Negative with a short rationale. Tool: sentiment_analysis.
+
+TOOL 4 - Suggest Next Action:
+  Type: "Suggest a next action for Dr. Smith."
+  Show: the agent reviews history and recommends a next step. Tool: suggest_next_action.
+
+TOOL 5 - Edit Interaction:
+  (Use the id shown in Recent Interactions, e.g. 1.)
+  Type: "Edit interaction 1, change the outcome to scheduled advisory board."
+  Show: switch to Recent Interactions - the outcome is updated. Tool: edit_interaction.
+
+Say:
+"That's all five required tools - Log, Edit, Search, Sentiment, and Suggest -
+plus a bonus save tool, all routed automatically by the LangGraph agent."
+
+
+========================================================================
+PART 4 - CODE STRUCTURE EXPLANATION  (9:00 - 13:00)
+========================================================================
+Switch to the code editor. Walk through the repo layout:
+
+BACKEND (backend/):
+  - agent/graph.py  -> the LangGraph agent. Show the StateGraph: an "agent" node
+    (the LLM bound to the tools) and a "tools" node, with a conditional edge that
+    loops back so the LLM can read tool output and reply. This is the core of the
+    "agent decides which tool to call" requirement.
+  - agent/tools.py  -> the tools. Show log_interaction (LLM entity extraction ->
+    prefills the form) and edit_interaction (updates a saved record). Mention
+    search_hcp, sentiment_analysis, suggest_next_action, save_interaction.
+  - agent/llm.py    -> the Groq client (model from .env).
+  - models.py       -> SQLAlchemy tables (HCP, Interaction).
+  - schemas.py      -> Pydantic request/response models.
+  - main.py         -> FastAPI endpoints:
+      POST /api/interactions, GET /api/interactions, PUT /api/interactions/{id},
+      POST /api/chat, GET /api/hcps, GET /api/health.
+  - seed.py         -> demo HCP data.
+
+FRONTEND (frontend/src/):
+  - store/          -> Redux Toolkit: interactionsSlice (CRUD thunks) and
+    chatSlice (conversation + the form-prefill draft + save signal).
+  - components/     -> Sidebar, LogInteractionForm, ChatInterface, InteractionsList.
+  - api/api.js      -> axios client with friendly error handling.
+  - App.jsx         -> tab layout; styles/index.css uses the Inter font.
+
+Explain the end-to-end flow:
+"When the rep chats, the message goes to POST /api/chat. The LangGraph agent
+decides a tool. For logging, log_interaction extracts the fields and returns
+them; the backend sends them back as form_prefill; Redux stores them and the
+form populates. The rep reviews and clicks Log Interaction (or says 'save it'),
+which calls POST /api/interactions and the row is stored in PostgreSQL."
+
+
+========================================================================
+PART 5 - WRAP UP  (13:00 - 15:00)
+========================================================================
+Say:
+"To summarize what I understood: the task is to design the entry point of an
+AI-first CRM for life-science field reps - a Log Interaction screen that is
+flexible (form or chat) and intelligent. The key design choice is human-in-the-
+loop: the AI does the heavy lifting of understanding natural language and
+extracting structured data, but the rep stays in control by reviewing before
+saving. LangGraph orchestrates the tools, the LLM handles summarization and
+entity extraction, and everything persists to a relational database.
+
+Thanks for watching - the GitHub repo with the full code and README is linked
+in the submission."
+
+
+========================================================================
+QUICK REFERENCE - EXACT PROMPTS TO TYPE
+========================================================================
+1. Met Dr. Smith today, discussed Product X efficacy, sentiment was positive, shared the brochures, attendees were Rahul and Shyam.
+2. save it
+3. Find HCPs in Cardiology.
+4. Analyze the sentiment of this note: the doctor was frustrated and dismissive about pricing.
+5. Suggest a next action for Dr. Smith.
+6. Edit interaction 1, change the outcome to scheduled advisory board.
+
+REMINDERS
+- Give interaction details as ONE full sentence for the most reliable extraction.
+- If a chat command does not trigger, rephrase once, or edit the field directly
+  in the form (the form is always reliable).
+- If the AI feels slow or errors, it is Groq free-tier latency - just retry.

@@ -78,12 +78,29 @@ def update_interaction(
     return interaction
 
 
+SAVE_INTENTS = {
+    "save", "save it", "save this", "save now", "save that", "save the interaction",
+    "log it", "log it now", "log this", "confirm", "confirm save", "yes save",
+    "save please", "please save", "go ahead and save", "save and log",
+}
+
+
 @app.post("/api/chat", response_model=schemas.ChatResponse)
 def chat(payload: schemas.ChatRequest):
     if not payload.message or not payload.message.strip():
         return schemas.ChatResponse(
             reply="Please type a message so I can help you log or find an interaction.",
             tools_used=[],
+        )
+
+    # Deterministic fast-path: a plain "save" command never needs the LLM, so it
+    # always works instantly even if Groq is slow or rate-limited.
+    normalized = payload.message.strip().lower().strip(" .!?")
+    if normalized in SAVE_INTENTS:
+        return schemas.ChatResponse(
+            reply="Saved! It now appears in your recent interactions.",
+            tools_used=[schemas.ChatToolCall(tool="save_interaction", args={})],
+            action="save",
         )
 
     try:
@@ -123,6 +140,7 @@ def chat(payload: schemas.ChatRequest):
 
         form_prefill = None
         action = None
+        edit_id = None
         for m in out_messages:
             if isinstance(m, ToolMessage):
                 try:
@@ -132,11 +150,15 @@ def chat(payload: schemas.ChatRequest):
                 if isinstance(data, dict):
                     if data.get("status") == "form_prefilled":
                         form_prefill = data.get("fields")
+                    elif data.get("status") == "edit_loaded":
+                        form_prefill = data.get("fields")
+                        edit_id = data.get("edit_id")
                     elif data.get("status") == "save_requested":
                         action = "save"
 
         return schemas.ChatResponse(
-            reply=reply, tools_used=tools_used, form_prefill=form_prefill, action=action
+            reply=reply, tools_used=tools_used, form_prefill=form_prefill,
+            action=action, edit_id=edit_id,
         )
     except Exception:
         logger.exception("Chat agent error")

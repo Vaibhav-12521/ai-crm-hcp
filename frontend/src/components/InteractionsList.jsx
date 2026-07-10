@@ -20,7 +20,10 @@ export default function InteractionsList({ items }) {
         {items.map((it) => (
           <div key={it.id} className="list-item">
             <div className="list-item-top">
-              <span className="hcp">{it.hcp_name}</span>
+              <span className="hcp">
+                <span className="id-badge">#{it.id}</span>
+                {it.hcp_name}
+              </span>
               {it.sentiment && (
                 <span className={`pill ${sentimentClass(it.sentiment)}`}>{it.sentiment}</span>
               )}
