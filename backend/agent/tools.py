@@ -34,33 +34,21 @@ def log_interaction(
     outcome: str = "",
     follow_up_actions: str = "",
 ) -> str:
-    """Capture HCP interaction details from the user's message and PREFILL the
-    Log Interaction form for the rep to review.
-
-    IMPORTANT: this does NOT save to the database. It uses the LLM to extract
-    the entities from the free-text message and returns them so the form is
-    populated. The rep reviews/edits the form and clicks "Log Interaction" to
-    save. Use this whenever the user describes a meeting, call, or email.
+    """Extract HCP interaction details and PREFILL the form (does NOT save).
 
     Args:
-        hcp_name: Full name of the HCP (e.g. "Dr. Sarah Chen").
-        notes: ONLY the discussion topics stated in the CURRENT message. Leave
-            EMPTY ("") when the rep is just updating another field (attendees,
-            sentiment, outcome, date). NEVER copy the conversation history here.
-        date: ISO date (YYYY-MM-DD) of the interaction. Defaults to today.
-        time: Time of the interaction (e.g. "07:36 PM").
-        location: Where the interaction happened.
-        interaction_type: One of Meeting, Call, Email, Conference, etc.
-        attendees: Names of people who attended.
-        materials_shared: ONLY printed/promotional materials such as brochures,
-            leaflets, pamphlets, or PDFs. NEVER put product samples here. Leave
-            EMPTY ("") if none. Never write phrases like "none".
-        samples_distributed: ONLY physical product samples (e.g. "sample kit x2",
-            "3 sample packs"). NEVER put brochures or leaflets here. Leave EMPTY
-            ("") if none. If the rep shared samples, they go here, not materials.
-        sentiment: Observed tone (Positive, Neutral, or Negative).
-        outcome: The result or key takeaway of the interaction.
-        follow_up_actions: Next steps or tasks.
+        hcp_name: HCP full name.
+        notes: Discussion topics from THIS message only; empty if just updating another field.
+        date: ISO date (YYYY-MM-DD); defaults to today.
+        time: Time (e.g. "07:36 PM").
+        location: Where it happened.
+        interaction_type: Meeting, Call, Email, etc.
+        attendees: Who attended.
+        materials_shared: Brochures/leaflets shared; empty if none.
+        samples_distributed: Product samples given; empty if none.
+        sentiment: Positive, Neutral, or Negative.
+        outcome: Result or key takeaway.
+        follow_up_actions: Next steps.
     """
     # Only set sentiment when actually provided, so a partial update does not
     # overwrite the sentiment already chosen on the form.
@@ -140,16 +128,10 @@ def edit_interaction(
     outcome: str = "",
     follow_up_actions: str = "",
 ) -> str:
-    """Load an existing interaction into the form so the rep can edit it.
-
-    Use this when the rep asks to edit/change an existing interaction by its id
-    (e.g. "edit interaction 1"). It fetches the saved record and loads all its
-    current values into the form. If the rep also stated changes in the same
-    message, pass those field(s) and they are applied on top. It does NOT save;
-    the rep reviews and clicks "Update Interaction" to save.
+    """Load a saved interaction (by id) into the form to edit; does NOT save.
 
     Args:
-        interaction_id: The id of the interaction to edit (a number as a string).
+        interaction_id: Id of the interaction to edit (number as a string).
         hcp_name, notes, date, time, location, interaction_type, attendees,
         materials_shared, samples_distributed, sentiment, outcome,
         follow_up_actions: Optional new values for any field the rep changed.

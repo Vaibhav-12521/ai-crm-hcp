@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import datetime
 from functools import lru_cache
 from typing import Annotated, TypedDict
 
@@ -10,50 +10,20 @@ from langgraph.prebuilt import ToolNode
 from .llm import get_llm
 from .tools import ALL_TOOLS
 
-SYSTEM_PROMPT = """You are the AI assistant inside an AI-First CRM used by \
-pharmaceutical sales reps to log and manage interactions with Healthcare \
-Professionals (HCPs).
+SYSTEM_PROMPT = """You are the AI assistant in an AI-first CRM for pharma reps \
+logging interactions with Healthcare Professionals (HCPs).
 
-You have access to these tools:
-- log_interaction: extract interaction details and PREFILL the form (does NOT
-  save; the rep reviews the form and clicks "Log Interaction" to save).
-- save_interaction: save the interaction currently in the form to the database.
-- edit_interaction: load an existing saved interaction (by id) into the form for editing.
-- search_hcp: find HCP profiles by name, specialty, or location.
-- sentiment_analysis: judge the tone of interaction notes.
-- suggest_next_action: recommend the next best action for an HCP.
+Routing:
+- Rep describes an interaction OR states/changes any field (HCP, topics,
+  sentiment, attendees, materials, samples, outcome, date): call log_interaction
+  with only those fields. It prefills the form; it does not save.
+- "edit interaction N" or change an existing saved record: call edit_interaction.
+- "save"/"log it"/"confirm": call save_interaction.
+- Find HCPs: search_hcp. Judge a note's tone: sentiment_analysis.
+- Only when explicitly asked for a next step: suggest_next_action.
 
-Guidelines:
-- CRITICAL: If the rep's message states or changes ANY interaction detail (HCP
-  name, topics, sentiment, attendees, materials, samples, outcome, date, time,
-  follow-up), you MUST call log_interaction with those field(s). NEVER reply with
-  text claiming you "updated", "captured", or "populated" anything unless you
-  actually called log_interaction in this same turn.
-- log_interaction FILLS or UPDATES the form. Call it whenever the rep describes
-  an interaction OR states/changes any single field, for example: "sentiment is
-  positive", "attendees are Rahul and Shyam", "outcome was a repeat order",
-  "change the date to Monday", "materials were brochures". Pass ONLY the field(s)
-  the rep mentioned in that message; the form keeps its other values.
-- After log_interaction runs, briefly confirm which field(s) you populated (name
-  the actual fields, e.g. "Updated the attendees") and ask the rep to review and
-  click 'Log Interaction' to save. Do NOT say it has been saved.
-- save_interaction: call this when the rep asks to save, log, or confirm the
-  interaction (e.g. "save it", "log it now", "yes save", "confirm and save"). After
-  it runs, reply briefly, e.g. "Saved! It now appears in your recent interactions."
-- suggest_next_action: call this ONLY when the rep EXPLICITLY asks for a
-  suggestion or next step (e.g. "suggest a follow-up", "what should I do next",
-  or a clear "yes" right after you offered one). A message that simply provides
-  more interaction details (attendees, sentiment, outcome, materials, date, etc.)
-  is NOT a request for a suggestion - keep using log_interaction for those.
-- edit_interaction: when the rep asks to edit or change an existing saved
-  interaction by id (e.g. "edit interaction 1", "change interaction 2's outcome"),
-  call it to LOAD that record into the form. Include any field the rep wants
-  changed. Afterwards, tell them the interaction is loaded and they can edit and
-  click "Update Interaction" to save. Do NOT say it is already updated.
-- search_hcp and sentiment_analysis: use when the rep asks to find HCPs or to
-  analyze the tone of a note.
-- Use today's date unless the rep specifies another. Never invent an interaction id.
-"""
+Never claim you updated something unless you actually called a tool this turn.
+Use today's date unless told otherwise. Never invent an interaction id."""
 
 
 class AgentState(TypedDict):
@@ -68,7 +38,12 @@ def build_agent():
     def agent_node(state: AgentState):
         messages = state["messages"]
         if not any(isinstance(m, SystemMessage) for m in messages):
-            system = f"{SYSTEM_PROMPT}\n\nToday's date is {date.today().isoformat()}."
+            now = datetime.now()
+            realtime = (
+                f"Today is {now.strftime('%A, %d %B %Y')}. "
+                f"Current time is {now.strftime('%H:%M')}."
+            )
+            system = f"{SYSTEM_PROMPT}\n\n{realtime}"
             messages = [SystemMessage(content=system)] + messages
         response = llm_with_tools.invoke(messages)
         return {"messages": [response]}
@@ -84,5 +59,7 @@ def build_agent():
     graph.add_node("tools", tool_node)
     graph.set_entry_point("agent")
     graph.add_conditional_edges("agent", route, {"tools": "tools", END: END})
-    graph.add_edge("tools", "agent")
+    # End after the tool runs; the reply is built deterministically from the tool
+    # result (no second LLM call), which halves latency and rate-limit pressure.
+    graph.add_edge("tools", END)
     return graph.compile()

@@ -39,8 +39,7 @@ storage, with the Google Inter font throughout."
 
 NOTE TO MENTION:
 "The brief specifies gemma2-9b-it, but Groq has decommissioned that model, so I
-used llama-3.1-8b-instant (the brief also lists llama-3.3-70b-versatile as an
-option). It's configurable via one environment variable."
+used llama-3.1-8b-instant. It's configurable via one environment variable."
 
 
 ========================================================================
@@ -112,37 +111,39 @@ plus a bonus save tool, all routed automatically by the LangGraph agent."
 ========================================================================
 PART 4 - CODE STRUCTURE EXPLANATION  (9:00 - 13:00)
 ========================================================================
-Switch to the code editor. Walk through the repo layout:
+Open the code editor. Keep it simple: the project has two folders, backend
+and frontend. Say: "The repo is split into a Python backend and a React
+frontend."
 
-BACKEND (backend/):
-  - agent/graph.py  -> the LangGraph agent. Show the StateGraph: an "agent" node
-    (the LLM bound to the tools) and a "tools" node, with a conditional edge that
-    loops back so the LLM can read tool output and reply. This is the core of the
-    "agent decides which tool to call" requirement.
-  - agent/tools.py  -> the tools. Show log_interaction (LLM entity extraction ->
-    prefills the form) and edit_interaction (updates a saved record). Mention
-    search_hcp, sentiment_analysis, suggest_next_action, save_interaction.
-  - agent/llm.py    -> the Groq client (model from .env).
-  - models.py       -> SQLAlchemy tables (HCP, Interaction).
-  - schemas.py      -> Pydantic request/response models.
-  - main.py         -> FastAPI endpoints:
-      POST /api/interactions, GET /api/interactions, PUT /api/interactions/{id},
-      POST /api/chat, GET /api/hcps, GET /api/health.
-  - seed.py         -> demo HCP data.
+SAY THIS (one line per file, point as you go):
 
-FRONTEND (frontend/src/):
-  - store/          -> Redux Toolkit: interactionsSlice (CRUD thunks) and
-    chatSlice (conversation + the form-prefill draft + save signal).
-  - components/     -> Sidebar, LogInteractionForm, ChatInterface, InteractionsList.
-  - api/api.js      -> axios client with friendly error handling.
-  - App.jsx         -> tab layout; styles/index.css uses the Inter font.
+BACKEND (the brain - Python + FastAPI):
+  "main.py is the FastAPI server. It has the API endpoints - one to save an
+   interaction, one to list them, one to edit, and the /api/chat endpoint for
+   the AI assistant."
+  "The agent folder is the AI part, built with LangGraph:
+     - graph.py builds the LangGraph agent - it decides which tool to run.
+     - tools.py has the 5 tools: log, edit, search, sentiment, and suggest.
+     - llm.py connects to Groq (the LLM)."
+  "models.py defines the database tables, and schemas.py validates the data."
 
-Explain the end-to-end flow:
-"When the rep chats, the message goes to POST /api/chat. The LangGraph agent
-decides a tool. For logging, log_interaction extracts the fields and returns
-them; the backend sends them back as form_prefill; Redux stores them and the
-form populates. The rep reviews and clicks Log Interaction (or says 'save it'),
-which calls POST /api/interactions and the row is stored in PostgreSQL."
+FRONTEND (what the user sees - React + Redux):
+  "The components folder has the UI: the form, the AI chat panel, and the
+   recent-interactions list."
+  "The store folder is Redux - it holds the app's state, like the chat
+   messages and the interactions list."
+  "api.js is what talks to the backend."
+
+THEN EXPLAIN THE FLOW IN ONE BREATH (this is the important part):
+"So the flow is simple: I type a message in the chat. It goes to the backend.
+The LangGraph agent reads it and picks the right tool. If I'm describing an
+interaction, it pulls out the details with the LLM and sends them back, and
+Redux fills the form on screen. I review it, click Log Interaction, and it's
+saved to the PostgreSQL database and shows up in Recent Interactions."
+
+ONE-LINE SUMMARY TO END PART 4:
+"In short: React shows the screen, FastAPI handles the requests, LangGraph is
+the AI brain that runs the tools, and PostgreSQL stores everything."
 
 
 ========================================================================
