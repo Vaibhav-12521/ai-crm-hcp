@@ -44,36 +44,35 @@ def log_interaction(
 
     Args:
         hcp_name: Full name of the HCP (e.g. "Dr. Sarah Chen").
-        notes: The topics discussed / free-text description of the interaction.
+        notes: ONLY the discussion topics stated in the CURRENT message. Leave
+            EMPTY ("") when the rep is just updating another field (attendees,
+            sentiment, outcome, date). NEVER copy the conversation history here.
         date: ISO date (YYYY-MM-DD) of the interaction. Defaults to today.
         time: Time of the interaction (e.g. "07:36 PM").
         location: Where the interaction happened.
         interaction_type: One of Meeting, Call, Email, Conference, etc.
         attendees: Names of people who attended.
-        materials_shared: Materials shared with the HCP.
-        samples_distributed: Samples given (if any).
+        materials_shared: ONLY printed/promotional materials such as brochures,
+            leaflets, pamphlets, or PDFs. NEVER put product samples here. Leave
+            EMPTY ("") if none. Never write phrases like "none".
+        samples_distributed: ONLY physical product samples (e.g. "sample kit x2",
+            "3 sample packs"). NEVER put brochures or leaflets here. Leave EMPTY
+            ("") if none. If the rep shared samples, they go here, not materials.
         sentiment: Observed tone (Positive, Neutral, or Negative).
         outcome: The result or key takeaway of the interaction.
         follow_up_actions: Next steps or tasks.
     """
-    inferred = sentiment or "Neutral"
-    if notes and not sentiment:
-        try:
-            llm = get_llm()
-            prompt = (
-                "Classify the sentiment of this sales interaction note. Return "
-                "ONLY one word: Positive, Neutral, or Negative.\n\n"
-                f"Note: {notes}"
-            )
-            word = llm.invoke([HumanMessage(content=prompt)]).content.strip().split()[0]
-            if word.capitalize() in ("Positive", "Neutral", "Negative"):
-                inferred = word.capitalize()
-        except Exception:
-            pass
-
-    inferred = inferred.strip().capitalize()
+    inferred = (sentiment or "Neutral").strip().capitalize()
     if inferred not in ("Positive", "Neutral", "Negative"):
         inferred = "Neutral"
+
+    mats = _drop_negation(materials_shared)
+    samps = _drop_negation(samples_distributed)
+    # Samples must never sit in the materials box.
+    if mats and samps and mats.strip().lower() == samps.strip().lower():
+        mats = ""
+    elif mats and not samps and "sample" in mats.lower():
+        samps, mats = mats, ""
 
     fields = {
         "hcp_name": hcp_name,
@@ -83,13 +82,24 @@ def log_interaction(
         "location": location,
         "interaction_type": interaction_type,
         "attendees": attendees,
-        "materials_shared": materials_shared,
-        "samples_distributed": samples_distributed,
+        "materials_shared": mats,
+        "samples_distributed": samps,
         "sentiment": inferred,
         "outcome": outcome,
         "follow_up_actions": follow_up_actions,
     }
     return json.dumps({"status": "form_prefilled", "fields": fields})
+
+
+def _drop_negation(value: str) -> str:
+    """Return '' when the model wrote a 'none' style phrase instead of leaving it empty."""
+    if not value:
+        return ""
+    low = value.strip().lower()
+    negations = ("none", "no", "n/a", "na", "nil", "nothing")
+    if low in negations or low.startswith("no ") or "no materials" in low or "no samples" in low:
+        return ""
+    return value
 
 
 @tool

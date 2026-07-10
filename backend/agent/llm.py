@@ -6,7 +6,7 @@ from config import settings
 
 
 @lru_cache(maxsize=1)
-def get_llm(temperature: float = 0.2) -> ChatGroq:
+def get_llm(temperature: float = 0.0) -> ChatGroq:
     return ChatGroq(
         api_key=settings.groq_api_key,
         model=settings.groq_model,
