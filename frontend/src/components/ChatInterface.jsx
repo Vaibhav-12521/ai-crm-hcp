@@ -3,10 +3,11 @@ import { useDispatch, useSelector } from 'react-redux'
 import { sendMessage, pushUserMessage } from '../store/chatSlice'
 
 const SUGGESTIONS = [
-  'Met Dr. Sarah Chen in Boston today, great discussion on the new trial data.',
-  'Analyze the sentiment of my last note.',
-  'Suggest a next action for Dr. Sarah Chen.',
+  'Met Dr. Sarah Chen in Boston today, discussed the new trial data, positive, shared brochures.',
+  'Edit interaction 1',
   'Find HCPs in Cardiology.',
+  'Analyze the sentiment: the doctor was frustrated about pricing.',
+  'Suggest a next action for Dr. Sarah Chen.',
 ]
 
 export default function ChatInterface() {
