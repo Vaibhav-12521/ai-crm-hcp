@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { createInteraction } from '../store/interactionsSlice'
 import { clearDraft } from '../store/chatSlice'
@@ -39,6 +39,10 @@ export default function LogInteractionForm() {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const draft = useSelector((s) => s.chat.draft)
+  const saveSignal = useSelector((s) => s.chat.saveSignal)
+  const formRef = useRef(form)
+  formRef.current = form
+  const lastSaveSignal = useRef(saveSignal)
 
   useEffect(() => {
     api.listHcps().then(setHcps).catch(() => setHcps([]))
@@ -73,15 +77,14 @@ export default function LogInteractionForm() {
     }))
   }
 
-  const submit = async (e) => {
-    e.preventDefault()
+  const doSave = async (data) => {
     setError('')
-    if (!form.hcp_name.trim()) {
+    if (!data.hcp_name.trim()) {
       setError('Please enter the HCP name before logging the interaction.')
       return
     }
     try {
-      await dispatch(createInteraction(form)).unwrap()
+      await dispatch(createInteraction(data)).unwrap()
       setForm(EMPTY)
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
@@ -89,6 +92,20 @@ export default function LogInteractionForm() {
       setError(err?.message || "Couldn't save the interaction. Please try again.")
     }
   }
+
+  const submit = (e) => {
+    e.preventDefault()
+    doSave(form)
+  }
+
+  // Save when the AI Assistant is told to (e.g. "save it"), using current form values.
+  useEffect(() => {
+    if (saveSignal !== lastSaveSignal.current) {
+      lastSaveSignal.current = saveSignal
+      doSave(formRef.current)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveSignal])
 
   return (
     <form className="card form" onSubmit={submit}>

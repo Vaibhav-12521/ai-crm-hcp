@@ -21,7 +21,7 @@ def _parse_date(value: Optional[str]) -> date:
 
 @tool
 def log_interaction(
-    hcp_name: str,
+    hcp_name: str = "",
     notes: str = "",
     date: str = "",
     time: str = "",
@@ -62,9 +62,11 @@ def log_interaction(
         outcome: The result or key takeaway of the interaction.
         follow_up_actions: Next steps or tasks.
     """
-    inferred = (sentiment or "Neutral").strip().capitalize()
+    # Only set sentiment when actually provided, so a partial update does not
+    # overwrite the sentiment already chosen on the form.
+    inferred = (sentiment or "").strip().capitalize()
     if inferred not in ("Positive", "Neutral", "Negative"):
-        inferred = "Neutral"
+        inferred = ""
 
     mats = _drop_negation(materials_shared)
     samps = _drop_negation(samples_distributed)
@@ -74,9 +76,16 @@ def log_interaction(
     elif mats and not samps and "sample" in mats.lower():
         samps, mats = mats, ""
 
+    # Drop notes when it is a field command or just echoes another field value.
+    clean_notes = "" if _is_field_command(notes) else notes
+    for other in (attendees, outcome, mats, samps):
+        if clean_notes and other and clean_notes.strip().lower() == other.strip().lower():
+            clean_notes = ""
+            break
+
     fields = {
         "hcp_name": hcp_name,
-        "notes": notes,
+        "notes": clean_notes,
         "date": date,
         "time": time,
         "location": location,
@@ -89,6 +98,19 @@ def log_interaction(
         "follow_up_actions": follow_up_actions,
     }
     return json.dumps({"status": "form_prefilled", "fields": fields})
+
+
+def _is_field_command(text: str) -> str:
+    """True when the text is a 'set this field' instruction rather than real topics."""
+    if not text:
+        return False
+    t = text.strip().lower()
+    starters = (
+        "attendee", "the attendee", "outcome", "the outcome", "sentiment",
+        "the sentiment", "material", "the material", "sample", "follow",
+        "change ", "set ", "update ", "make it ", "make the ", "date ", "time ",
+    )
+    return t.startswith(starters)
 
 
 def _drop_negation(value: str) -> str:
@@ -293,10 +315,22 @@ def _extract_json(text: str) -> str:
     return text
 
 
+@tool
+def save_interaction() -> str:
+    """Save the interaction currently shown in the form to the database.
+
+    Call this ONLY when the rep explicitly asks to save, log, or confirm the
+    interaction (e.g. "save it", "log it now", "yes save", "confirm"). The values
+    currently in the form - including any manual edits - are what gets saved.
+    """
+    return json.dumps({"status": "save_requested"})
+
+
 ALL_TOOLS = [
     log_interaction,
     edit_interaction,
     search_hcp,
     sentiment_analysis,
     suggest_next_action,
+    save_interaction,
 ]

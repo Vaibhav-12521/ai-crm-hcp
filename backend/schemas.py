@@ -70,3 +70,4 @@ class ChatResponse(BaseModel):
     reply: str
     tools_used: List[ChatToolCall] = []
     form_prefill: Optional[dict] = None
+    action: Optional[str] = None

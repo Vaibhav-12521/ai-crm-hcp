@@ -122,16 +122,22 @@ def chat(payload: schemas.ChatRequest):
             )
 
         form_prefill = None
+        action = None
         for m in out_messages:
             if isinstance(m, ToolMessage):
                 try:
                     data = json.loads(m.content)
-                    if isinstance(data, dict) and data.get("status") == "form_prefilled":
-                        form_prefill = data.get("fields")
                 except (ValueError, TypeError):
-                    pass
+                    continue
+                if isinstance(data, dict):
+                    if data.get("status") == "form_prefilled":
+                        form_prefill = data.get("fields")
+                    elif data.get("status") == "save_requested":
+                        action = "save"
 
-        return schemas.ChatResponse(reply=reply, tools_used=tools_used, form_prefill=form_prefill)
+        return schemas.ChatResponse(
+            reply=reply, tools_used=tools_used, form_prefill=form_prefill, action=action
+        )
     except Exception:
         logger.exception("Chat agent error")
         return schemas.ChatResponse(

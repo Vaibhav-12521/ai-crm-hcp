@@ -28,6 +28,7 @@ const chatSlice = createSlice({
     ],
     status: 'idle',
     draft: null,
+    saveSignal: 0,
   },
   reducers: {
     pushUserMessage: (state, action) => {
@@ -51,6 +52,9 @@ const chatSlice = createSlice({
         })
         if (action.payload.form_prefill) {
           state.draft = action.payload.form_prefill
+        }
+        if (action.payload.action === 'save') {
+          state.saveSignal += 1
         }
       })
       .addCase(sendMessage.rejected, (state, action) => {
