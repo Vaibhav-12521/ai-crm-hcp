@@ -5,7 +5,7 @@ log and manage interactions with **Healthcare Professionals (HCPs)** - either
 through a **structured form** or a **conversational AI assistant**, shown
 side-by-side on a single **Log HCP Interaction** screen.
 
----
+--- 
 
 ## ✨ Features
 
